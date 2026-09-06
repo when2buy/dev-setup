@@ -169,6 +169,27 @@ export KEYS_AUTO="$PROFILES"
 EOF
         ok "$rc  →  KEYS_AUTO=\"$PROFILES\""
     done
+    # A LOGIN shell (what ssh gives you, and what macOS Terminal runs by default) reads
+    # ~/.bash_profile / ~/.bash_login / ~/.profile — and NOT ~/.bashrc. Most distributions
+    # ship a skeleton profile that sources .bashrc, but a fresh container or a hand-made
+    # home directory has none, and then `ssh box` silently gets no keys while an
+    # interactive terminal on the same box has them. Found exactly that way, so: make sure
+    # the login path reaches the block too.
+    login_rc=""
+    for f in "$HOME/.bash_profile" "$HOME/.bash_login" "$HOME/.profile"; do
+        [ -e "$f" ] && { login_rc="$f"; break; }
+    done
+    if [ -z "$login_rc" ]; then
+        cat > "$HOME/.bash_profile" <<'EOF'
+# Login shells (ssh, macOS Terminal) do not read ~/.bashrc on their own. Written by
+# when2buy/dev-setup install.sh because this home directory had no profile at all.
+[ -r "$HOME/.bashrc" ] && . "$HOME/.bashrc"
+EOF
+        ok "$HOME/.bash_profile  →  sources ~/.bashrc (login shells had no path to it)"
+    elif ! grep -q 'bashrc' "$login_rc" 2>/dev/null; then
+        printf '\n[ -r "$HOME/.bashrc" ] && . "$HOME/.bashrc"   # added by when2buy/dev-setup\n' >> "$login_rc"
+        ok "$login_rc  →  now sources ~/.bashrc (it did not, so ssh would have had no keys)"
+    fi
     warn "the rc line loads from a local cache only, never the network — a new shell can
       never hang waiting on Infisical, and works offline once the cache is warm"
 fi
