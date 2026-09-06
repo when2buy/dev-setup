@@ -74,6 +74,10 @@ if have_cli; then
     ok "already installed: $("${BIN}/infisical" --version 2>/dev/null || infisical --version)"
 else
     mkdir -p "$BIN"
+    # mktemp obeys TMPDIR, and a stale TMPDIR pointing at a directory that no longer
+    # exists is common on boxes whose scratch disk is recreated. Failing here would look
+    # like "the download broke" rather than "your TMPDIR is gone", so drop it instead.
+    [ -n "${TMPDIR:-}" ] && [ ! -d "$TMPDIR" ] && { warn "TMPDIR=$TMPDIR does not exist; using /tmp"; unset TMPDIR; }
     tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
     url="https://github.com/Infisical/cli/releases/download/v${CLI_VERSION}/cli_${CLI_VERSION}_${OS}_${ARCH}.tar.gz"
     printf '    downloading %s … (~56 MB)\n' "cli_${CLI_VERSION}_${OS}_${ARCH}.tar.gz"
