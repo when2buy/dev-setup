@@ -63,9 +63,18 @@ keys --refresh paper   # 不走缓存，现在就去取（刚轮换过的时候�
 
 | profile | 里面是什么 | 说明 |
 |---|---|---|
-| `paper` | 模拟盘券商凭证 | 默认自动加载 |
+| `paper` | 模拟盘券商凭证 | 默认自动加载。⛔ 见下面那条红线 |
 | `aitist` / `airacle` / `zhongtian` / `steve` | 各应用的第三方厂商 key | 按需 `keys <名字>` |
 | `*-prod` / `live` | 生产 / **实盘真钱** | 只有服务器的卡读得到；开发机拿到 `403` 是**预期行为**，不是坏了 |
+
+> ⛔ **`paper` 里有 5 对券商凭证，其中两对上面有正在运行的策略 —— 别拿它们下测试单。**
+> `ALPHA_VAULT_OPS_PAPER_*` 和 `ZOUYANG_PAPER_ALPACA_*` 这两对是自动交易 controller 在用的；
+> 往那两个账户下一张手动单，会污染它们的盈亏归因，而那是那些策略**唯一的证据**。
+> **要试手就用 `AITIST_DEBUG_PAPER_ALPACA_*`。** 模拟盘的钱是免费的，模拟盘的证据不是。
+> （`AITIST_OFFICIAL_*` / `AITIST_ENRICO_DEV_*` 也有人在用，问一声再动。）
+>
+> 平仓请指定数量，**不要 `percentage=100`** —— 那些账户里已经有别人的持仓，
+> 100% 平仓会把你没开的那部分一起平掉（这个我们自己踩过）。
 
 想让某组每个 shell 都自动带上，改 `~/.bashrc` 里那行 `KEYS_AUTO="paper"` 就行，
 空格分隔多个。完全不想自动加载：`KEYS_AUTO=none`。
@@ -92,6 +101,7 @@ keys --refresh paper   # 不走缓存，现在就去取（刚轮换过的时候�
 | `keys: 403 ... not a member` 读 `live` | **预期行为**。实盘凭证单独一个项目，开发机的卡不在里面 —— 这是设计，不是故障 |
 | `keys: infisical CLI not installed` | `~/.local/bin` 不在 `PATH` 上。重跑 install.sh，它会补 |
 | 装完当前这个 shell 里还是没有 | 开一个新 shell，或者 `. ~/.bashrc` |
+| `cron` 或裸 `bash -c 'cmd'` 里没有 key | **这是 bash 本身的规则，不是 bug**：非交互、非登录的 bash **不读任何 rc 文件**。写成 `bash -lc 'cmd'`，或者在脚本开头 `. ~/.local/share/team-keys/rc.sh`。（`ssh box 'cmd'` 是特例，bash 会读 `~/.bashrc`，所以它是好的）|
 | 终端里有 key，但 `ssh box 'python app.py'` / cron / CI / agent 里没有 | 2026-09-06 之前的版本有这个 bug：块被追加在 `~/.bashrc` **末尾**，而 Debian/Ubuntu 的 `.bashrc` 开头就为**非交互** shell `return` 掉了。**重跑一次 install.sh** 即可（现在块在文件顶部）|
 | 用的是 zsh | 支持，装的时候会同时写 `~/.zshrc`。⚠️ 只有 `keys --status` 在 zsh 上没验过；取 key 本身是好的 |
 
