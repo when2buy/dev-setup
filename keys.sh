@@ -207,6 +207,11 @@ _keys_load() {
     [ "$quiet" -eq 1 ] || printf 'keys: %s — %s key(s) in this shell\n' \
         "$p" "$(grep -cE '^export ' "$cache")" >&2
     [ "$p" = live ] && printf 'keys: ⚠️  LIVE broker credentials are now in this shell; every child process inherits them\n' >&2
+    # The warning has to travel WITH the keys. Putting it only in the README means whoever
+    # reaches for these five key pairs an hour later — or a coding agent that was handed a
+    # task rather than the docs — never sees it, and a stray order on an account a strategy
+    # is trading destroys the only P&L evidence that strategy has.
+    [ "$p" = paper ] && [ "$quiet" -eq 0 ] && printf 'keys: paper holds 5 broker key pairs. Test orders go ONLY on AITIST_DEBUG_PAPER_ALPACA_*.\nkeys: ALPHA_VAULT_OPS_PAPER_* and ZOUYANG_PAPER_ALPACA_* have live strategies trading them.\nkeys: when closing, pass a quantity — never percentage=100; those accounts hold other positions.\n' >&2
     return 0
 }
 
