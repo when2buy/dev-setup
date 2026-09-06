@@ -183,7 +183,9 @@ EOF
         {
             printf '# >>> team-keys >>>   (managed by when2buy/dev-setup install.sh)\n'
             printf '# Kept at the top on purpose: the stock ~/.bashrc returns early for\n'
-            printf '# non-interactive shells, which is what ssh/cron/CI/agents all use.\n'
+            printf '# non-interactive shells, and a login shell is one of those.\n'
+            printf '# Shells that read no rc file at all (bare `bash -c`, cron, and\n'
+            printf '# `ssh box cmd` on Debian/Ubuntu) still need `bash -lc`.\n'
             printf '[ -r "%s/rc.sh" ] && . "%s/rc.sh"\n' "$RC_SHARE" "$RC_SHARE"
             printf '# <<< team-keys <<<\n'
             # Drop any previous copy of our block, wherever in the file it was.
