@@ -167,7 +167,15 @@ _keys_fetch() {
     fi
     printf 'keys: %s fetch FAILED (rc=%s) — %s\n' "$p" "$rc" \
         "$([ -r "$cache" ] && echo 'keeping the existing cache' || echo 'no cache to fall back on')" >&2
-    sed -n '1,2p' "$tmp.err" >&2 2>/dev/null
+    # The CLI prints the request URL first and the actual reason fourth, so echoing the
+    # first two lines shows a URL and HIDES "403 — you are not a member of this project",
+    # which is the entire answer (and, for the `live` profile, the expected one). Prefer
+    # the lines that say something; fall back to the head only if the shape ever changes.
+    if grep -qE '^(Response Code|Message):' "$tmp.err" 2>/dev/null; then
+        grep -E '^(Response Code|Message):' "$tmp.err" | cut -c1-200 | sed 's/^/  /' >&2
+    else
+        sed -n '1,2p' "$tmp.err" >&2 2>/dev/null
+    fi
     rm -f "$tmp" "$tmp.err"
     [ -r "$cache" ]
 }
