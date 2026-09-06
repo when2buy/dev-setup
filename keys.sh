@@ -230,14 +230,18 @@ _keys_daemon() {
            "$s" "$p" "${KEYS_REFRESH_EVERY:-600}" "$s"
 }
 
-# Auto-load on interactive shells, from the cache ONLY — never reach the network on the
-# login path, or a flaky network makes new shells hang. Set KEYS_AUTO to the profiles you
-# want in every shell; opt out entirely with KEYS_AUTO=none.
-case "$-" in *i*)
-    for _kp in ${KEYS_AUTO:-none}; do
-        [ "$_kp" = none ] && break
-        [ -r "$_KEYS_CACHE_DIR/$_kp.env" ] && KEYS_MAX_AGE=99999999 keys --quiet "$_kp"
-    done
-    unset _kp
-    ;;
-esac
+# Auto-load from the cache ONLY — never reach the network on the login path, or a flaky
+# network makes new shells hang. Set KEYS_AUTO to the profiles you want in every shell;
+# opt out entirely with KEYS_AUTO=none.
+#
+# This deliberately does NOT test for an interactive shell. It used to, on the theory that
+# a login-path cost should only be paid by a human at a terminal — but the cost is a single
+# read of a local file (~0.1 ms, below bash's own 2.8 ms startup), while the shells that
+# were being skipped are the ones that matter most: `ssh box 'python app.py'`, cron, CI,
+# and a coding agent's shell tool are all non-interactive. Skipping them meant a terminal
+# on the box had the keys and an ssh one-liner on the same box silently did not.
+for _kp in ${KEYS_AUTO:-none}; do
+    [ "$_kp" = none ] && break
+    [ -r "$_KEYS_CACHE_DIR/$_kp.env" ] && KEYS_MAX_AGE=99999999 keys --quiet "$_kp"
+done
+unset _kp

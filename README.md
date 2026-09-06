@@ -92,6 +92,7 @@ keys --refresh paper   # 不走缓存，现在就去取（刚轮换过的时候�
 | `keys: 403 ... not a member` 读 `live` | **预期行为**。实盘凭证单独一个项目，开发机的卡不在里面 —— 这是设计，不是故障 |
 | `keys: infisical CLI not installed` | `~/.local/bin` 不在 `PATH` 上。重跑 install.sh，它会补 |
 | 装完当前这个 shell 里还是没有 | 开一个新 shell，或者 `. ~/.bashrc` |
+| 终端里有 key，但 `ssh box 'python app.py'` / cron / CI / agent 里没有 | 2026-09-06 之前的版本有这个 bug：块被追加在 `~/.bashrc` **末尾**，而 Debian/Ubuntu 的 `.bashrc` 开头就为**非交互** shell `return` 掉了。**重跑一次 install.sh** 即可（现在块在文件顶部）|
 | 用的是 zsh | 支持，装的时候会同时写 `~/.zshrc`。⚠️ 只有 `keys --status` 在 zsh 上没验过；取 key 本身是好的 |
 
 ---
@@ -110,6 +111,24 @@ keys --refresh paper   # 不走缓存，现在就去取（刚轮换过的时候�
 `install.sh` 里 `CLI_VERSION` 写死一个版本号，**故意的**：这样不用去打 GitHub 的
 API 查 latest（共享出口 IP 很容易撞上 60 次/小时的匿名限额，那会让安装在最不该失败的
 时候失败）。要用别的版本：`INFISICAL_CLI_VERSION=0.43.200 bash install.sh`。
+
+### 让 coding agent 帮你装（Claude Code / Codex / Cursor）
+
+把下面这两行发给 agent 就行，**不需要别的提示**：
+
+```
+把我们团队的开发环境配起来，说明在这里：https://github.com/when2buy/dev-setup
+TEAM_KEY=<你收到的那一行>
+```
+
+它会读这个 README、读 `install.sh`，然后跑非交互那条路。实测（一个只有 curl/tar 的
+全新容器）**152 秒、8 轮**装完并自己验证过。
+
+> ⚠️ **这一条和下面"别把凭证贴给 AI 工具"是有张力的，说清楚**：贴进 prompt 的那行会留在
+> 那个 agent 的会话记录里。可以接受的前提是 —— 它**是一张门卡不是 key**，而且**是这台机器
+> 专属的一张**（`--kind machine`），单独吊销不影响任何人。所以：
+> **给 agent 用的卡，请单独申请一张，别用你自己那张人卡。**
+> 会话记录要外发（贴 issue、贴群、共享给别人）之前，先吊销那张卡。
 
 ### 非交互安装（CI、镜像构建、批量装机）
 

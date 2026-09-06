@@ -154,20 +154,37 @@ if [ "$EDIT_RC" -eq 1 ]; then
     # Write the path with a literal $HOME where possible, so the line keeps working if the
     # home directory is ever remounted somewhere else (containers do this routinely).
     case "$SHARE" in "$HOME"/*) RC_SHARE="\$HOME/${SHARE#"$HOME"/}" ;; *) RC_SHARE="$SHARE" ;; esac
-    for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
-        [ -e "$rc" ] || { [ "$rc" = "$HOME/.bashrc" ] || continue; : > "$rc"; }
-        # Replace our own block rather than appending a second copy.
-        if grep -q '# >>> team-keys >>>' "$rc" 2>/dev/null; then
-            sed -i.team-keys-bak '/# >>> team-keys >>>/,/# <<< team-keys <<</d' "$rc"
-        fi
-        cat >> "$rc" <<EOF
-# >>> team-keys >>>   (managed by when2buy/dev-setup install.sh — edit KEYS_AUTO freely)
+
+    # The three lines that actually do the work live in their own file, and each rc file
+    # only sources it. One copy to edit, and the same file can be reached from a login
+    # profile, a container entrypoint, or anything we add later.
+    cat > "$SHARE/rc.sh" <<EOF
+# Written by when2buy/dev-setup install.sh — re-running the installer rewrites this file.
+# Edit KEYS_AUTO freely (space-separated profiles, or "none" to load nothing).
 case ":\$PATH:" in *":\$HOME/.local/bin:"*) ;; *) PATH="\$HOME/.local/bin:\$PATH" ;; esac
 export KEYS_AUTO="$PROFILES"
 [ -r "$RC_SHARE/keys.sh" ] && . "$RC_SHARE/keys.sh"
-# <<< team-keys <<<
 EOF
-        ok "$rc  →  KEYS_AUTO=\"$PROFILES\""
+    ok "$SHARE/rc.sh  →  KEYS_AUTO=\"$PROFILES\""
+
+    # Insert at the TOP of each rc file, not the bottom. The stock Debian/Ubuntu ~/.bashrc
+    # opens with `case $- in *i*) ;; *) return;; esac` — it returns immediately for a
+    # NON-interactive shell, and `ssh box 'cmd'`, cron, CI and a coding agent's shell tool
+    # are all exactly that. Appended below that line, this block was dead in every one of
+    # them: an interactive terminal had the keys while `ssh box 'python app.py'` silently
+    # did not. Found by running the whole onboarding inside a clean container.
+    for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+        [ -e "$rc" ] || { [ "$rc" = "$HOME/.bashrc" ] || continue; : > "$rc"; }
+        {
+            printf '# >>> team-keys >>>   (managed by when2buy/dev-setup install.sh)\n'
+            printf '# Kept at the top on purpose: the stock ~/.bashrc returns early for\n'
+            printf '# non-interactive shells, which is what ssh/cron/CI/agents all use.\n'
+            printf '[ -r "%s/rc.sh" ] && . "%s/rc.sh"\n' "$RC_SHARE" "$RC_SHARE"
+            printf '# <<< team-keys <<<\n'
+            # Drop any previous copy of our block, wherever in the file it was.
+            sed '/# >>> team-keys >>>/,/# <<< team-keys <<</d' "$rc"
+        } > "$rc.team-keys-new" && mv -f "$rc.team-keys-new" "$rc"
+        ok "$rc  →  sources rc.sh on line 4 (before the non-interactive early return)"
     done
     # A LOGIN shell (what ssh gives you, and what macOS Terminal runs by default) reads
     # ~/.bash_profile / ~/.bash_login / ~/.profile — and NOT ~/.bashrc. Most distributions
