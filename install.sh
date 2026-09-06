@@ -169,10 +169,15 @@ EOF
 
     # Insert at the TOP of each rc file, not the bottom. The stock Debian/Ubuntu ~/.bashrc
     # opens with `case $- in *i*) ;; *) return;; esac` — it returns immediately for a
-    # NON-interactive shell, and `ssh box 'cmd'`, cron, CI and a coding agent's shell tool
-    # are all exactly that. Appended below that line, this block was dead in every one of
-    # them: an interactive terminal had the keys while `ssh box 'python app.py'` silently
-    # did not. Found by running the whole onboarding inside a clean container.
+    # NON-interactive shell, and a login shell, cron, CI and a coding agent's shell tool are
+    # all exactly that. Appended below that line, this block was dead in every one of them:
+    # an interactive terminal had the keys while `bash -lc 'python app.py'` silently did not.
+    # Found by running the whole onboarding inside a clean container.
+    #
+    # This does NOT rescue a shell that reads no rc file at all — a bare `bash -c`, a cron
+    # line, or (measured on Ubuntu 22.04 / bash 5.1.16) `ssh box 'cmd'`. Sourcing ~/.bashrc
+    # for an ssh command is a compile-time option Fedora/RHEL patch in and Debian/Ubuntu do
+    # not, so it cannot be relied on either way: write `ssh box 'bash -lc "cmd"'`.
     for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
         [ -e "$rc" ] || { [ "$rc" = "$HOME/.bashrc" ] || continue; : > "$rc"; }
         {

@@ -28,6 +28,9 @@ curl -fsSL https://raw.githubusercontent.com/when2buy/dev-setup/main/install.sh 
 keys: paper — 15 key(s) in this shell
 ```
 
+实测：一台什么都没有的机器（没装 CLI、没有卡、`.bashrc` 没动过）上，从零到 19 条 key
+在环境变量里 —— **4.8 秒**，其中大头是下那个 56 MB 的 CLI。
+
 ---
 
 ## 先说清楚：你拿到的那个凭证**不是 API key**
@@ -101,8 +104,8 @@ keys --refresh paper   # 不走缓存，现在就去取（刚轮换过的时候�
 | `keys: 403 ... not a member` 读 `live` | **预期行为**。实盘凭证单独一个项目，开发机的卡不在里面 —— 这是设计，不是故障 |
 | `keys: infisical CLI not installed` | `~/.local/bin` 不在 `PATH` 上。重跑 install.sh，它会补 |
 | 装完当前这个 shell 里还是没有 | 开一个新 shell，或者 `. ~/.bashrc` |
-| `cron` 或裸 `bash -c 'cmd'` 里没有 key | **这是 bash 本身的规则，不是 bug**：非交互、非登录的 bash **不读任何 rc 文件**。写成 `bash -lc 'cmd'`，或者在脚本开头 `. ~/.local/share/team-keys/rc.sh`。（`ssh box 'cmd'` 是特例，bash 会读 `~/.bashrc`，所以它是好的）|
-| 终端里有 key，但 `ssh box 'python app.py'` / cron / CI / agent 里没有 | 2026-09-06 之前的版本有这个 bug：块被追加在 `~/.bashrc` **末尾**，而 Debian/Ubuntu 的 `.bashrc` 开头就为**非交互** shell `return` 掉了。**重跑一次 install.sh** 即可（现在块在文件顶部）|
+| `cron` / 裸 `bash -c 'cmd'` / **`ssh box 'cmd'`** 里没有 key | **这是 bash 本身的规则，不是 bug**：这几种 shell **不读任何 rc 文件**，所以我们没有任何地方可以挂。写成 `bash -lc 'cmd'`（`ssh box 'bash -lc "cmd"'`），或者在脚本开头 `. ~/.local/share/team-keys/rc.sh`。<br>⚠️ `ssh box 'cmd'` 到底读不读 `~/.bashrc` 取决于 bash 的**编译选项**（`SSH_SOURCE_BASHRC`）：Fedora/RHEL 打了那个补丁，**Debian/Ubuntu 没有**（Ubuntu 22.04 / bash 5.1.16 实测：不读）。所以两边都别指望，一律写 `bash -lc` |
+| 交互终端里有 key，但**登录 shell** / cron / CI / agent 里没有 | 2026-09-06 之前的版本有这个 bug：块被追加在 `~/.bashrc` **末尾**，而 Debian/Ubuntu 的 `.bashrc` 开头就为**非交互** shell `return` 掉了。**重跑一次 install.sh** 即可（现在块在文件顶部）|
 | 用的是 zsh | 支持，装的时候会同时写 `~/.zshrc`。⚠️ 只有 `keys --status` 在 zsh 上没验过；取 key 本身是好的 |
 
 ---

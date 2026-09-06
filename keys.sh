@@ -242,9 +242,15 @@ _keys_daemon() {
 # This deliberately does NOT test for an interactive shell. It used to, on the theory that
 # a login-path cost should only be paid by a human at a terminal — but the cost is a single
 # read of a local file (~0.1 ms, below bash's own 2.8 ms startup), while the shells that
-# were being skipped are the ones that matter most: `ssh box 'python app.py'`, cron, CI,
-# and a coding agent's shell tool are all non-interactive. Skipping them meant a terminal
-# on the box had the keys and an ssh one-liner on the same box silently did not.
+# were being skipped are the ones that matter most: a login shell, cron, CI and a coding
+# agent's shell tool are all non-interactive. Skipping them meant a terminal on the box had
+# the keys and `bash -lc 'python app.py'` on the same box silently did not.
+#
+# What this still cannot reach, because no rc file is read at all: a bare `bash -c`, a cron
+# line, and — measured, not assumed — `ssh box 'cmd'` on Debian/Ubuntu. Whether bash sources
+# ~/.bashrc for an ssh command depends on a compile-time option (SSH_SOURCE_BASHRC) that
+# Fedora/RHEL patch in and Debian/Ubuntu do not; on Ubuntu 22.04 / bash 5.1.16 it does not.
+# Write `ssh box 'bash -lc "cmd"'`, or source rc.sh at the top of the script.
 for _kp in ${KEYS_AUTO:-none}; do
     [ "$_kp" = none ] && break
     [ -r "$_KEYS_CACHE_DIR/$_kp.env" ] && KEYS_MAX_AGE=99999999 keys --quiet "$_kp"
