@@ -165,6 +165,15 @@ _keys_fetch() {
         chmod 600 "$tmp" && mv -f "$tmp" "$cache"; rm -f "$tmp.err"
         return 0
     fi
+    # rc=0 with no export lines is not a failure at all: the folder exists and is empty,
+    # i.e. nobody has put a secret in it yet. Saying "FAILED" there sends the reader off
+    # to debug their credential, which is fine, and their network, which is fine.
+    if [ "$rc" -eq 0 ]; then
+        printf 'keys: %s is empty — the folder %s exists but holds no secrets yet\n' "$p" "$path" >&2
+        rm -f "$tmp" "$tmp.err"
+        [ -r "$cache" ]
+        return
+    fi
     printf 'keys: %s fetch FAILED (rc=%s) — %s\n' "$p" "$rc" \
         "$([ -r "$cache" ] && echo 'keeping the existing cache' || echo 'no cache to fall back on')" >&2
     # The CLI prints the request URL first and the actual reason fourth, so echoing the
