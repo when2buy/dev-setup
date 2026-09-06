@@ -1,0 +1,25 @@
+# .envrc — copy into a project root, edit INFISICAL_PATH, then run `direnv allow`.
+#
+# ✅ Safe to commit: contains no secrets, only ids.
+# Secrets land in this shell's memory when you cd in, and vanish when you cd out.
+#
+# Requires ~/.secrets/infisical.env (client id/secret). To place it on any machine:
+#   curl -fsSL https://raw.githubusercontent.com/when2buy/dev-setup/main/install.sh | bash
+
+# team-nonprod. The same id for every application — the folder is what varies.
+export INFISICAL_PROJECT_ID="90faa2df-86fe-449a-b46c-e4c4a490f082"
+INFISICAL_ENV="dev"                # dev | staging  — ⛔ prod is a different project
+INFISICAL_PATH="/Aitist"           # /Aitist /Airacle /when2buy /Zhongtian /Steve
+
+# Exchange the machine-identity credential for a short-lived token, then pull secrets.
+if [ -n "${INFISICAL_CLIENT_ID:-}" ]; then
+  INFISICAL_TOKEN="$(infisical login --method=universal-auth \
+      --client-id="$INFISICAL_CLIENT_ID" \
+      --client-secret="$INFISICAL_CLIENT_SECRET" \
+      --plain --silent)"
+  export INFISICAL_TOKEN
+  eval "$(infisical export --format=dotenv-export \
+      --projectId="$INFISICAL_PROJECT_ID" --env="$INFISICAL_ENV" --path="$INFISICAL_PATH")"
+else
+  echo "direnv: no INFISICAL_CLIENT_ID — see https://github.com/when2buy/dev-setup" >&2
+fi
