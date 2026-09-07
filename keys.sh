@@ -5,8 +5,9 @@
 # `./keys.sh` would fetch everything and then throw it away.
 #
 #   . /path/to/keys.sh          # defines `keys` (put this line in ~/.bashrc)
-#   keys paper                  # 15 Alpaca paper keys into THIS shell
-#   keys paper aitist           # more than one profile at a time
+#   keys all                    # every non-prod key (63) into THIS shell — the default
+#   keys paper                  # just the broker keys
+#   keys paper aitist           # or name the ones you want
 #   keys --list                 # what profiles exist
 #   keys --status               # what is loaded (names + lengths, never values)
 #   keys --refresh paper        # ignore the cache, fetch now
@@ -51,6 +52,12 @@ _keys_profile() {
     esac
 }
 _KEYS_ALL="paper aitist airacle zhongtian steve aitist-prod steve-prod live"
+# Every non-prod folder in one word, and the default. There is nothing to decide here: one
+# card can read all five folders anyway (the free tier has no per-folder permissions), and
+# the five folders share ZERO key names — measured, 63 keys, no collisions — so loading them
+# together cannot shadow anything. Asking a newcomer "which profile?" was a question with
+# one correct answer, which is a question that should not be asked.
+_KEYS_NONPROD_ALL="paper aitist airacle zhongtian steve"
 
 _KEYS_CARD="${KEYS_CARD:-$HOME/.secrets/infisical.env}"
 _KEYS_CACHE_DIR="${KEYS_CACHE_DIR:-$HOME/.cache/infisical}"
@@ -75,6 +82,7 @@ keys() {
             --stop)       action=stop ;;
             -h|--help)    action=help ;;
             -*) printf 'keys: unknown option %s (try --help)\n' "$1" >&2; return 2 ;;
+            all) profiles+=($_KEYS_NONPROD_ALL) ;;
             *)  profiles+=("$1") ;;
         esac
         shift
@@ -89,6 +97,7 @@ keys() {
             set -- $(_keys_profile "$p")
             printf '  %-12s %-14s %-6s %s\n' "$p" "${1:0:8}…" "$2" "$3"
         done
+        printf '  %-12s %-14s %-6s %s\n' all '(the five' 'dev' 'non-prod folders above — the default)'
         printf '\n  live = real broker credentials. Needs a when2buy-prod card,\n'
         printf '  which no machine currently has (403 "not a member" is expected).\n'
         return 0 ;;
@@ -251,8 +260,17 @@ _keys_daemon() {
 # ~/.bashrc for an ssh command depends on a compile-time option (SSH_SOURCE_BASHRC) that
 # Fedora/RHEL patch in and Debian/Ubuntu do not; on Ubuntu 22.04 / bash 5.1.16 it does not.
 # Write `ssh box 'bash -lc "cmd"'`, or source rc.sh at the top of the script.
+case " ${KEYS_AUTO:-none} " in *" all "*) KEYS_AUTO="$_KEYS_NONPROD_ALL" ;; esac
 for _kp in ${KEYS_AUTO:-none}; do
     [ "$_kp" = none ] && break
     [ -r "$_KEYS_CACHE_DIR/$_kp.env" ] && KEYS_MAX_AGE=99999999 keys --quiet "$_kp"
 done
 unset _kp
+
+# Repo access rides along with the keys. A newcomer's second problem, thirty seconds after
+# the first, is `git clone` on a private repo — so if the GitHub token came down with
+# everything else, wire it up here rather than making them find it and configure git.
+# GH_TOKEN is what the `gh` CLI reads; the credential helper is what plain `git` reads.
+# (`git` itself is handled by the credential helper install.sh writes, which reads this
+# same variable at clone time — so a rotated token needs no reconfiguring anywhere.)
+[ -n "${GITHUB_WHEN2BUY_ADMIN_TOKEN:-}" ] && export GH_TOKEN="${GH_TOKEN:-$GITHUB_WHEN2BUY_ADMIN_TOKEN}"

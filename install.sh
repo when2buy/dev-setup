@@ -11,7 +11,8 @@
 #   2. takes your credential and stores it in ~/.secrets/infisical.env, mode 600
 #   3. installs `keys`, the loader that pulls this team's API keys into a shell
 #   4. adds one line to your shell rc so every new shell has them
-#   5. proves it worked by fetching for real and printing key NAMES and lengths
+#   5. makes `git clone` work on our private repos (the token comes down with the keys)
+#   6. proves it worked by fetching for real and printing key NAMES and lengths
 #
 # It never prints a secret value, and it is safe to re-run — every step is idempotent.
 #
@@ -32,7 +33,7 @@ CLI_VERSION="${INFISICAL_CLI_VERSION:-0.43.129}"   # pinned on purpose; see READ
 BIN="${TEAM_SETUP_BIN:-$HOME/.local/bin}"
 SHARE="${TEAM_SETUP_SHARE:-$HOME/.local/share/team-keys}"
 CARD="${TEAM_SETUP_CARD:-$HOME/.secrets/infisical.env}"
-PROFILES="${TEAM_SETUP_PROFILES:-paper}"           # loaded in every new shell
+PROFILES="${TEAM_SETUP_PROFILES:-all}"             # loaded in every new shell; all = every folder
 EDIT_RC=1
 FETCH=1
 
@@ -218,6 +219,34 @@ EOF
       never hang waiting on Infisical, and works offline once the cache is warm"
 fi
 
+# ------------------------------------------------------------------ 4b. private repos
+# The second thing a newcomer needs, about thirty seconds after the keys, is to clone a
+# private repo — and that is its own credential hunt (find the token, decide where to put
+# it, get the URL form right). The token already arrived with everything else, so spend six
+# lines here and `git clone https://github.com/when2buy/<anything>` simply works.
+#
+# The helper reads the token from the environment at clone time rather than storing a copy,
+# so a rotated token needs no reconfiguring, and nothing lands in ~/.gitconfig or in a repo's
+# .git/config. Scoped to github.com only.
+step "Wiring \`git clone\` for private repos"
+if command -v git >/dev/null 2>&1; then
+    cat > "$SHARE/git-credential-team" <<'EOF'
+#!/bin/sh
+# Written by when2buy/dev-setup install.sh. Answers git's credential query for github.com
+# from whichever team token is in the environment. Stores nothing.
+[ "$1" = get ] || exit 0
+tok="${GITHUB_WHEN2BUY_ADMIN_TOKEN:-${GH_TOKEN:-${GITHUB_PERSONAL_TOKEN:-}}}"
+[ -n "$tok" ] || exit 0
+echo "username=x-access-token"
+echo "password=$tok"
+EOF
+    chmod 755 "$SHARE/git-credential-team"
+    git config --global --replace-all "credential.https://github.com.helper" "$SHARE/git-credential-team"
+    ok "git clone https://github.com/when2buy/<repo>  works with no further setup"
+else
+    warn "git is not installed, so nothing to wire up (install git, then re-run this)"
+fi
+
 # ------------------------------------------------------------------ 5. prove it
 if [ "$FETCH" -eq 1 ]; then
     step "Fetching for real"
@@ -231,15 +260,14 @@ fi
 
 cat <<EOF
 
-$(printf '\033[32m\033[1mDone.\033[0m')  Open a new shell and the keys are simply there.
+$(printf '\033[32m\033[1mDone.\033[0m')  Open a new shell. Every key is already in it, and
+git clone on our private repos works.
 
-    keys --list          which key sets exist and where they live
-    keys aitist          add another set to THIS shell
+    git clone https://github.com/when2buy/<repo>     no extra setup
     keys --status        what is loaded (names and lengths, never values)
+    keys --refresh all   after someone rotates a key
 
-Two things worth knowing:
-  · Your card is personal. It is logged, revocable on its own, and revoking it disturbs
-    nobody else. So do not forward it — a new person gets their own.
-  · Keys are not on your disk in plain form, and they are not in git. If you ever find
-    yourself pasting one into a file, ask first; there is almost always a better way.
+One thing worth knowing: your card is logged and revocable on its own, so do not forward
+it — ask and you get another in seconds. Rotating a key is free for you: your next fetch
+is the new value, and nothing on your disk needs editing.
 EOF
