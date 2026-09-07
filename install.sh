@@ -253,8 +253,14 @@ if [ "$FETCH" -eq 1 ]; then
     # shellcheck disable=SC1090
     . "$SHARE/keys.sh"
     for p in $PROFILES; do
-        keys --refresh "$p" || die "fetch failed for profile '$p' — see the message above"
+        keys --refresh "$p" || warn "part of profile '$p' could not be fetched — see above"
     done
+    # Fail only if NOTHING landed. One folder that is empty or unreadable is a normal state
+    # of the world, and treating it as a failed install leaves the newcomer with no keys and
+    # a red error when four of the five folders were fine. (This is not hypothetical: /Airacle
+    # is empty, and it used to abort the whole fetch.)
+    ls "${KEYS_CACHE_DIR:-$HOME/.cache/infisical}"/*.env >/dev/null 2>&1 \
+        || die "nothing was fetched at all — see the messages above"
     keys --status $PROFILES
 fi
 

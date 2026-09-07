@@ -123,7 +123,12 @@ keys() {
 
     # ---------------------------------------------------------------- load
     [ ${#profiles[@]} -gt 0 ] || { printf 'keys: which profile? (keys --list)\n' >&2; return 2; }
-    for p in "${profiles[@]}"; do _keys_load "$p" "$force" "$quiet" || return 1; done
+    # Keep going after a failure, then report it. One unreachable folder must not cost you
+    # the four that were fine — with `all` as the default, bailing out on the first problem
+    # turns a partial outage into "this machine has no keys at all".
+    local bad=0
+    for p in "${profiles[@]}"; do _keys_load "$p" "$force" "$quiet" || bad=1; done
+    return $bad
 }
 
 _keys_mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0; }
@@ -177,11 +182,14 @@ _keys_fetch() {
     # rc=0 with no export lines is not a failure at all: the folder exists and is empty,
     # i.e. nobody has put a secret in it yet. Saying "FAILED" there sends the reader off
     # to debug their credential, which is fine, and their network, which is fine.
+    # Return 2, not 1: an empty folder must not abort the profiles queued behind it.
+    # It did, and it broke the whole point of `keys all` — /Airacle is empty, so a fresh
+    # install fetched paper and aitist, hit airacle, and exited having loaded nothing.
     if [ "$rc" -eq 0 ]; then
         printf 'keys: %s is empty — the folder %s exists but holds no secrets yet\n' "$p" "$path" >&2
         rm -f "$tmp" "$tmp.err"
-        [ -r "$cache" ]
-        return
+        [ -r "$cache" ] && return 0
+        return 2
     fi
     printf 'keys: %s fetch FAILED (rc=%s) — %s\n' "$p" "$rc" \
         "$([ -r "$cache" ] && echo 'keeping the existing cache' || echo 'no cache to fall back on')" >&2
@@ -205,7 +213,14 @@ _keys_load() {
     local cache="$_KEYS_CACHE_DIR/$p.env" need=0
     if [ "$force" -eq 1 ] || [ ! -r "$cache" ]; then need=1
     elif [ "$(( $(date +%s) - $(_keys_mtime "$cache") ))" -gt "$_KEYS_MAX_AGE" ]; then need=1; fi
-    [ "$need" -eq 1 ] && { _keys_fetch "$p" || return 1; }
+    if [ "$need" -eq 1 ]; then
+        _keys_fetch "$p"
+        case $? in
+            0) ;;
+            2) return 0 ;;   # empty folder, nothing to source — not an error
+            *) return 1 ;;
+        esac
+    fi
 
     # Refuse a world- or group-readable secret file.
     local mode; mode="$(stat -c %a "$cache" 2>/dev/null || stat -f %Lp "$cache" 2>/dev/null)"
