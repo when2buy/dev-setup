@@ -8,8 +8,8 @@
 curl -fsSL https://raw.githubusercontent.com/when2buy/dev-setup/main/install.sh | bash
 ```
 
-它会问你要那个凭证（形如 `<uuid>:<一长串>`，你会收到一条**一次性链接**）。粘进去、回车，
-完事。之后**每开一个新 shell，key 就已经在环境变量里了**。
+它会问你要那个凭证（形如 `<uuid>:<一长串>`，Steve 直接发给你）。粘进去、回车，完事。之后
+**每开一个新 shell，全部 key 都已经在环境变量里**，而且**私有仓库直接 `git clone` 就能拉**。
 
 ```
 ==> Checking what this machine already has
@@ -23,12 +23,14 @@ curl -fsSL https://raw.githubusercontent.com/when2buy/dev-setup/main/install.sh 
     ✓ ~/.secrets/infisical.env  (mode 600)
 ==> Installing the `keys` loader
     ✓ ~/.local/share/team-keys/keys.sh
-    ✓ ~/.bashrc  →  KEYS_AUTO="paper"
+    ✓ ~/.bashrc  →  KEYS_AUTO="all"
+==> Wiring `git clone` for private repos
+    ✓ git clone https://github.com/when2buy/<repo>  works with no further setup
 ==> Fetching for real
-keys: paper — 15 key(s) in this shell
+keys: all — 63 key(s) in this shell
 ```
 
-实测：一台什么都没有的机器（没装 CLI、没有卡、`.bashrc` 没动过）上，从零到 19 条 key
+实测：一台什么都没有的机器（没装 CLI、没有卡、`.bashrc` 没动过）上，从零到全部 key
 在环境变量里 —— **4.8 秒**，其中大头是下那个 56 MB 的 CLI。
 
 ---
@@ -52,11 +54,14 @@ keys: paper — 15 key(s) in this shell
 
 ## 装完之后怎么用
 
+**默认情况下你不需要用它** —— 装完之后每个 shell 里已经是全部 63 条 key，以及能用的
+`git clone` / `gh`。要手动干预的时候才有这几条：
+
 ```bash
-keys --list            # 有哪些 key 组、分别在哪
-keys aitist            # 把 Aitist 那组也加进【当前这个】shell
 keys --status          # 现在加载了什么（只打名字和长度，永远不打值）
-keys --refresh paper   # 不走缓存，现在就去取（刚轮换过的时候用）
+keys --refresh all     # 不走缓存，现在就去取（刚有人轮换过 key 的时候）
+keys --list            # 有哪些 key 组、分别在哪
+keys aitist            # 只把某一组加进【当前这个】shell
 ```
 
 `keys` 是一个 shell 函数，不是可执行文件 —— 它必须能改**当前** shell 的环境变量，
@@ -66,8 +71,9 @@ keys --refresh paper   # 不走缓存，现在就去取（刚轮换过的时候�
 
 | profile | 里面是什么 | 说明 |
 |---|---|---|
-| `paper` | 模拟盘券商凭证 | 默认自动加载。⛔ 见下面那条红线 |
-| `aitist` / `airacle` / `zhongtian` / `steve` | 各应用的第三方厂商 key | 按需 `keys <名字>` |
+| **`all`** | 下面那五组全部（63 条） | **默认，每个 shell 自动加载**。五个文件夹的 key 名字零重叠（实测），所以一起加载不会互相覆盖 |
+| `paper` | 模拟盘券商凭证 | ⛔ 见下面那条红线 |
+| `aitist` / `airacle` / `zhongtian` / `steve` | 各应用的第三方厂商 key + GitHub token | 想只要某一组时 `keys <名字>` |
 | `*-prod` / `live` | 生产 / **实盘真钱** | 只有服务器的卡读得到；开发机拿到 `403` 是**预期行为**，不是坏了 |
 
 > ⛔ **`paper` 里有 5 对券商凭证，其中两对上面有正在运行的策略 —— 别拿它们下测试单。**
@@ -79,8 +85,20 @@ keys --refresh paper   # 不走缓存，现在就去取（刚轮换过的时候�
 > 平仓请指定数量，**不要 `percentage=100`** —— 那些账户里已经有别人的持仓，
 > 100% 平仓会把你没开的那部分一起平掉（这个我们自己踩过）。
 
-想让某组每个 shell 都自动带上，改 `~/.bashrc` 里那行 `KEYS_AUTO="paper"` 就行，
-空格分隔多个。完全不想自动加载：`KEYS_AUTO=none`。
+不想全部自动加载，就改 `~/.local/share/team-keys/rc.sh` 里那行 `KEYS_AUTO="all"`
+（空格分隔几组，或者 `none` 什么都不加）。
+
+### 私有仓库
+
+装完就能拉，不用再找 token：
+
+```bash
+git clone https://github.com/when2buy/<repo>     # 私有的也行
+gh repo list when2buy                            # gh 也已经带好 GH_TOKEN
+```
+
+原理：`install.sh` 给 github.com 配了一个 credential helper，它在 clone 的**当时**去环境
+变量里读 token —— 所以 token 轮换了你什么都不用改，磁盘上也没有 token 的副本。
 
 ### 为什么新 shell 不会变慢
 
@@ -97,9 +115,7 @@ keys --refresh paper   # 不走缓存，现在就去取（刚轮换过的时候�
 
 | 现象 | 真因 / 怎么办 |
 |---|---|
-| `Infisical rejected it` | 大概率是粘贴被截断（脚本会打出长度，对一下），或者这张卡已经被吊销 / 链接已被人打开过（**一次性**）。找 Steve 要一条新链接 |
-| 链接打开是登录墙 | 发链接的时候用错了模式。要 `accessType=anyone` + 密码，找 Steve 重发 |
-| 链接打开是 404 | 已经被看过了，或者过期了（默认 24h）。重发一条新的，**不要复用** |
+| `Infisical rejected it` | 大概率是粘贴被截断（脚本会打出长度，对一下 —— 应该是 36 + 64），或者这张卡已经被吊销。找 Steve 要新的一行，几秒钟的事 |
 | `keys: no card at ~/.secrets/infisical.env` | 还没跑过 install.sh，或者换了机器 / 家目录被重建了。重跑上面那条命令 |
 | `keys: 403 ... not a member` 读 `live` | **预期行为**。实盘凭证单独一个项目，开发机的卡不在里面 —— 这是设计，不是故障 |
 | `keys: infisical CLI not installed` | `~/.local/bin` 不在 `PATH` 上。重跑 install.sh，它会补 |
@@ -134,19 +150,17 @@ API 查 latest（共享出口 IP 很容易撞上 60 次/小时的匿名限额，
 TEAM_KEY=<你收到的那一行>
 ```
 
-它会读这个 README、读 `install.sh`，然后跑非交互那条路。实测（一个只有 curl/tar 的
-全新容器）**152 秒、8 轮**装完并自己验证过。
+它会读这个 README、读 `install.sh`，然后跑非交互那条路。实测（一台全新机器，agent 自己
+先审代码再跑，最后自己验证）**103 秒、13 轮**。
 
-> ⚠️ **这一条和下面"别把凭证贴给 AI 工具"是有张力的，说清楚**：贴进 prompt 的那行会留在
-> 那个 agent 的会话记录里。可以接受的前提是 —— 它**是一张门卡不是 key**，而且**是这台机器
-> 专属的一张**（`--kind machine`），单独吊销不影响任何人。所以：
-> **给 agent 用的卡，请单独申请一张，别用你自己那张人卡。**
-> 会话记录要外发（贴 issue、贴群、共享给别人）之前，先吊销那张卡。
+> 那行会留在 agent 的会话记录里 —— 这是可以接受的：它**是一张门卡不是 key**，而且是**可以
+> 单独吊销**的一张，吊销不影响任何人。会话记录要外发（贴 issue、贴群）之前跟 Steve 说一声，
+> 换一张就好。
 
 ### 非交互安装（CI、镜像构建、批量装机）
 
 ```bash
-TEAM_KEY='<id>:<secret>' bash <(curl -fsSL .../install.sh) --profiles "paper aitist"
+TEAM_KEY='<id>:<secret>' bash <(curl -fsSL .../install.sh)
 ```
 
 ⚠️ 这样写会把凭证留在 shell history 和进程列表里。批量装机请从文件读，或者用
@@ -158,7 +172,7 @@ TEAM_KEY='<id>:<secret>' bash <(curl -fsSL .../install.sh) --profiles "paper ait
 
 | | |
 |---|---|
-| `--profiles "paper aitist"` | 设 `KEYS_AUTO`，默认 `paper` |
+| `--profiles "paper aitist"` | 只自动加载某几组，默认 `all`（全部） |
 | `--no-rc` | 不动 `~/.bashrc` / `~/.zshrc` |
 | `--card-only` | 只装 CLI + 落卡，不拉 key、不改 rc |
 | `-h` | 帮助 |
