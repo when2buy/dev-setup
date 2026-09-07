@@ -288,4 +288,13 @@ unset _kp
 # GH_TOKEN is what the `gh` CLI reads; the credential helper is what plain `git` reads.
 # (`git` itself is handled by the credential helper install.sh writes, which reads this
 # same variable at clone time — so a rotated token needs no reconfiguring anywhere.)
-[ -n "${GITHUB_WHEN2BUY_ADMIN_TOKEN:-}" ] && export GH_TOKEN="${GH_TOKEN:-$GITHUB_WHEN2BUY_ADMIN_TOKEN}"
+#
+# Written as an `if`, not `[ … ] && export`. This is the LAST line of a file that gets
+# sourced by scripts running under `set -e`, and a trailing test that evaluates false makes
+# the whole `source` return 1 — which killed install.sh silently, mid-step, with no error
+# message, whenever the GitHub token was not already in the environment. Measured; the
+# symptom was a bare "==> Fetching for real" and then nothing at all.
+if [ -n "${GITHUB_WHEN2BUY_ADMIN_TOKEN:-}" ]; then
+    export GH_TOKEN="${GH_TOKEN:-$GITHUB_WHEN2BUY_ADMIN_TOKEN}"
+fi
+: # and keep the file's exit status 0 no matter what was added above
