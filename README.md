@@ -54,7 +54,7 @@ keys: all — 63 key(s) in this shell
 
 ## 装完之后怎么用
 
-**默认情况下你不需要用它** —— 装完之后每个 shell 里已经是全部 key（69 条、63 个不同名字），以及能用的
+**默认情况下你不需要用它** —— 装完之后每个 shell 里已经是全部 key（72 条、63 个不同名字），以及能用的
 `git clone` / `gh`。要手动干预的时候才有这几条：
 
 ```bash
@@ -71,7 +71,7 @@ keys aitist            # 只把某一组加进【当前这个】shell
 
 | profile | 里面是什么 | 说明 |
 |---|---|---|
-| **`all`** | 下面那五组全部（**69 条，63 个不同名字**） | **默认，每个 shell 自动加载**。有 6 个 Cloudflare 名字同时存在于 `/when2buy` 和 `/Aitist`（前者带 aitist.ai 的 zone、后者带 afoundry.org），加载顺序固定为 paper→aitist，所以 **`/Aitist` 胜出**、行为和以前一样 |
+| **`all`** | 下面那五组全部（**72 条，63 个不同名字**） | **默认，每个 shell 自动加载**。有 9 个名字同时存在于两个文件夹（6 个 Cloudflare 在 `/when2buy` 和 `/Aitist`，3 个 GitHub 在 `/when2buy` 和 `/Steve`）。加载顺序固定 paper→aitist→…→steve，所以 `/Aitist` 和 `/Steve` 胜出、行为和以前一样。九个里只有 `CF_ZONE_*` 的值真的不同（when2buy=aitist.ai，Aitist=afoundry.org），其余都是引用同一份 |
 | `paper` | 模拟盘券商凭证 | ⛔ 见下面那条红线 |
 | `aitist` / `airacle` / `zhongtian` / `steve` | 各应用的第三方厂商 key + GitHub token | 想只要某一组时 `keys <名字>` |
 | `*-prod` / `live` | 生产 / **实盘真钱** | 只有服务器的卡读得到；开发机拿到 `403` 是**预期行为**，不是坏了 |

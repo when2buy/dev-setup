@@ -57,17 +57,21 @@ _KEYS_ALL="paper aitist airacle zhongtian steve aitist-prod steve-prod live"
 # asking a newcomer "which profile?" was a question with one correct answer.
 #
 # ⚠️ The folders are NO LONGER collision-free (they were, at 63 keys, until 2026-09-11). The
-# when2buy project got its own Cloudflare entries so its bundle could carry the aitist.ai zone
-# while /Aitist keeps afoundry.org for the cf-deploy toolchain — so these SIX names exist in
-# both /when2buy and /Aitist:
-#     CLOUDFLARE_API_TOKEN  CLOUDFLARE_ACCOUNT_ID  CF_API_TOKEN
-#     CF_ACCOUNT_ID         CF_ZONE_ID             CF_ZONE_DOMAIN
+# The when2buy project got its own Cloudflare and GitHub entries so that a when2buy bundle can
+# carry deploy + repo access on its own. NINE names therefore exist in two folders each:
+#     /when2buy vs /Aitist :  CLOUDFLARE_API_TOKEN  CLOUDFLARE_ACCOUNT_ID  CF_API_TOKEN
+#                             CF_ACCOUNT_ID         CF_ZONE_ID             CF_ZONE_DOMAIN
+#     /when2buy vs /Steve  :  GITHUB_WHEN2BUY_ADMIN_TOKEN  GITHUB_PERSONAL_TOKEN
+#                             GITHUB_PERSONAL_USER
 # Resolution is deterministic and deliberately preserves the old behaviour: the load order
-# below puts `paper` (/when2buy) BEFORE `aitist`, so /Aitist wins and `keys all` still yields
-# the afoundry.org zone that cf-deploy expects. The token and account id are references to the
-# single stored copy, so they are identical either way; only CF_ZONE_* actually differ.
-# ⛔ Do not reorder this list without knowing that.
-# 69 rows across the five folders, 63 distinct names.
+# below is paper aitist airacle zhongtian steve, so /Aitist wins the Cloudflare names and
+# /Steve wins the GitHub ones — i.e. `keys all` still yields the afoundry.org zone that the
+# cf-deploy toolchain expects. ⛔ Do not reorder this list without knowing that.
+#
+# Only ONE of the nine actually differs in value: CF_ZONE_ID/CF_ZONE_DOMAIN
+# (/when2buy = aitist.ai, /Aitist = afoundry.org). Everything else is a reference to the single
+# stored copy, so which folder wins is immaterial for those.
+# 72 rows across the five folders, 63 distinct names.
 _KEYS_NONPROD_ALL="paper aitist airacle zhongtian steve"
 
 _KEYS_CARD="${KEYS_CARD:-$HOME/.secrets/infisical.env}"
