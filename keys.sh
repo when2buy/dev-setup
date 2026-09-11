@@ -53,10 +53,21 @@ _keys_profile() {
 }
 _KEYS_ALL="paper aitist airacle zhongtian steve aitist-prod steve-prod live"
 # Every non-prod folder in one word, and the default. There is nothing to decide here: one
-# card can read all five folders anyway (the free tier has no per-folder permissions), and
-# the five folders share ZERO key names — measured, 63 keys, no collisions — so loading them
-# together cannot shadow anything. Asking a newcomer "which profile?" was a question with
-# one correct answer, which is a question that should not be asked.
+# card can read all five folders anyway (the free tier has no per-folder permissions), so
+# asking a newcomer "which profile?" was a question with one correct answer.
+#
+# ⚠️ The folders are NO LONGER collision-free (they were, at 63 keys, until 2026-09-11). The
+# when2buy project got its own Cloudflare entries so its bundle could carry the aitist.ai zone
+# while /Aitist keeps afoundry.org for the cf-deploy toolchain — so these SIX names exist in
+# both /when2buy and /Aitist:
+#     CLOUDFLARE_API_TOKEN  CLOUDFLARE_ACCOUNT_ID  CF_API_TOKEN
+#     CF_ACCOUNT_ID         CF_ZONE_ID             CF_ZONE_DOMAIN
+# Resolution is deterministic and deliberately preserves the old behaviour: the load order
+# below puts `paper` (/when2buy) BEFORE `aitist`, so /Aitist wins and `keys all` still yields
+# the afoundry.org zone that cf-deploy expects. The token and account id are references to the
+# single stored copy, so they are identical either way; only CF_ZONE_* actually differ.
+# ⛔ Do not reorder this list without knowing that.
+# 69 rows across the five folders, 63 distinct names.
 _KEYS_NONPROD_ALL="paper aitist airacle zhongtian steve"
 
 _KEYS_CARD="${KEYS_CARD:-$HOME/.secrets/infisical.env}"
